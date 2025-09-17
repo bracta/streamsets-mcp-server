@@ -1,0 +1,105 @@
+version: 2
+name: custom
+displayName: Custom MCP Servers
+registry:
+  streamsets:
+    description: "Enterprise Streamsets Control Hub platform with comprehensive metrics analytics, job operations, job label management, pipeline lifecycle, deployment management, alert monitoring, security controls, data lineage, bulk operations, and debugging capabilities"
+    title: "Streamsets"
+    type: server
+    dateAdded: "2025-01-01T00:00:00Z"
+    image: streamsets-mcp-server:latest
+    ref: ""
+    readme: ""
+    toolsUrl: ""
+    source: ""
+    upstream: ""
+    icon: ""
+    tools:
+      # Basic Job Management
+      - name: sdc_list_jobs
+      - name: sdc_get_job_details
+      - name: sdc_get_job_status
+      - name: sdc_start_job
+      - name: sdc_stop_job
+      - name: sdc_get_job_history
+      # Advanced Job Operations (Phase 1)
+      - name: sdc_get_job_logs
+      - name: sdc_force_stop_job
+      - name: sdc_reset_job_offset
+      - name: sdc_acknowledge_job_error
+      # Bulk Operations (Phase 1)
+      - name: sdc_start_multiple_jobs
+      - name: sdc_stop_multiple_jobs
+      - name: sdc_get_bulk_job_status
+      # Job Label Management
+      - name: sdc_get_job_labels
+      - name: sdc_list_all_job_labels
+      - name: sdc_update_job_labels
+      - name: sdc_search_jobs_by_labels
+      - name: sdc_get_job_tags_bulk
+      # Pipeline Management (Phase 2)
+      - name: sdc_list_pipelines
+      - name: sdc_get_pipeline_details
+      - name: sdc_get_pipeline_commit
+      - name: sdc_get_pipeline_history
+      - name: sdc_search_pipelines
+      - name: sdc_export_pipelines
+      - name: sdc_import_pipelines
+      # Metrics and Analytics
+      - name: sdc_get_job_metrics
+      - name: sdc_get_problematic_jobs
+      - name: sdc_get_job_count_by_status
+      - name: sdc_get_executor_metrics
+      - name: sdc_get_pipeline_metrics
+      - name: sdc_get_user_login_metrics
+      - name: sdc_get_security_audit_metrics
+      # Enterprise Integration (Phase 3)
+      - name: sdc_list_deployments
+      - name: sdc_get_deployment_details
+      - name: sdc_start_deployment
+      - name: sdc_stop_deployment
+      - name: sdc_list_alerts
+      - name: sdc_get_job_acl
+      - name: sdc_update_job_acl
+      - name: sdc_get_topology_details
+      # Connection Management
+      - name: sdc_list_connections
+      - name: sdc_get_connection_details
+      - name: sdc_get_connection_types
+      - name: sdc_get_pipelines_using_connection
+    secrets:
+      - name: STREAMSETS_HOST_PREFIX
+        env: STREAMSETS_HOST_PREFIX
+        example: "https://cloud.streamsets.com"
+      - name: STREAMSETS_CRED_ID
+        env: STREAMSETS_CRED_ID
+        example: "abc123-credential-id"
+      - name: STREAMSETS_CRED_TOKEN
+        env: STREAMSETS_CRED_TOKEN
+        example: "xyz789-auth-token"
+    metadata:
+      category: integration
+      tags:
+        - data-pipeline
+        - etl
+        - streamsets
+        - data-integration
+        - job-management
+        - job-labels
+        - pipeline-management
+        - bulk-operations
+        - debugging
+        - monitoring
+        - version-control
+        - deployment
+        - infrastructure
+        - security
+        - alerts
+        - data-lineage
+        - enterprise
+        - metrics
+        - analytics
+        - performance
+        - compliance
+      license: MIT
+      owner: local
