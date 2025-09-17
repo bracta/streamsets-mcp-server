@@ -98,35 +98,37 @@ sdc_get_pipeline_flow pipeline_id="pipeline_builder_1"
 
 ### Docker Deployment
 
-#### Quick Start with Docker Compose (Recommended)
+#### For MCP Integration (Claude Desktop)
 ```bash
-# Set environment variables
-export STREAMSETS_HOST_PREFIX="https://your-instance.streamsets.com"
-export STREAMSETS_CRED_ID="your-credential-id"
-export STREAMSETS_CRED_TOKEN="your-auth-token"
-
-# Start with persistent storage
-./start-docker.sh
-```
-
-#### Manual Docker Deployment
-```bash
-# Build the image
+# Build the image first
 docker build -t streamsets-mcp-server .
 
-# Run with persistent volume for pipeline builders
-docker run -d \
-  -e STREAMSETS_HOST_PREFIX="https://your-instance.streamsets.com" \
-  -e STREAMSETS_CRED_ID="your-credential-id" \
-  -e STREAMSETS_CRED_TOKEN="your-auth-token" \
-  -v streamsets-pipeline-data:/data \
-  --name streamsets-mcp-server \
-  streamsets-mcp-server
+# Create persistent volume for pipeline builders
+docker volume create streamsets-pipeline-data
 ```
 
-#### Docker Compose (Full Configuration)
+Then configure Claude Desktop to use Docker with persistent volume:
+```json
+{
+  "mcpServers": {
+    "streamsets": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-v", "streamsets-pipeline-data:/data",
+        "-e", "STREAMSETS_HOST_PREFIX=https://your-instance.streamsets.com",
+        "-e", "STREAMSETS_CRED_ID=your-credential-id",
+        "-e", "STREAMSETS_CRED_TOKEN=your-auth-token",
+        "streamsets-mcp-server"
+      ]
+    }
+  }
+}
+```
+
+#### Standalone Testing (Docker Compose)
 ```bash
-# Use docker-compose for production deployment
+# For testing/development only (not for MCP integration)
 docker-compose up -d
 
 # View logs
@@ -136,8 +138,23 @@ docker-compose logs -f streamsets-mcp
 docker-compose down
 ```
 
+#### Manual Docker Testing
+```bash
+# Build the image
+docker build -t streamsets-mcp-server .
+
+# Test run with volume persistence
+docker run --rm -it \
+  -e STREAMSETS_HOST_PREFIX="https://your-instance.streamsets.com" \
+  -e STREAMSETS_CRED_ID="your-credential-id" \
+  -e STREAMSETS_CRED_TOKEN="your-auth-token" \
+  -v streamsets-pipeline-data:/data \
+  streamsets-mcp-server
+```
+
 ### Claude Desktop Integration
-Add to your `claude_desktop_config.json`:
+
+#### Option 1: Direct Python (Local Development)
 ```json
 {
   "mcpServers": {
@@ -153,6 +170,27 @@ Add to your `claude_desktop_config.json`:
   }
 }
 ```
+
+#### Option 2: Docker with Persistence (Production)
+```json
+{
+  "mcpServers": {
+    "streamsets": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-v", "streamsets-pipeline-data:/data",
+        "-e", "STREAMSETS_HOST_PREFIX=https://your-instance.streamsets.com",
+        "-e", "STREAMSETS_CRED_ID=your-credential-id",
+        "-e", "STREAMSETS_CRED_TOKEN=your-auth-token",
+        "streamsets-mcp-server"
+      ]
+    }
+  }
+}
+```
+
+**Note**: Docker Compose is **not compatible** with MCP integration. Use the Docker command approach above for containerized MCP deployment.
 
 ## 📖 Usage Examples
 

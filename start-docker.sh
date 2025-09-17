@@ -1,11 +1,15 @@
 #!/bin/bash
 
 # StreamSets MCP Server Docker Startup Script
-# This script builds and starts the Docker container with proper volume persistence
+# FOR TESTING/DEVELOPMENT ONLY - Not for MCP integration!
+#
+# This script builds and starts the Docker container as a standalone service
+# For MCP integration, use the Docker command in claude_desktop_config.json
 
 set -e
 
-echo "🚀 Starting StreamSets MCP Server with Docker"
+echo "🚀 Starting StreamSets MCP Server with Docker (Testing Mode)"
+echo "⚠️  NOTE: This is for testing only. For MCP integration, see README.md"
 
 # Check if required environment variables are set
 if [ -z "$STREAMSETS_HOST_PREFIX" ] || [ -z "$STREAMSETS_CRED_ID" ] || [ -z "$STREAMSETS_CRED_TOKEN" ]; then
