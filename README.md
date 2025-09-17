@@ -97,15 +97,43 @@ sdc_get_pipeline_flow pipeline_id="pipeline_builder_1"
    ```
 
 ### Docker Deployment
+
+#### Quick Start with Docker Compose (Recommended)
+```bash
+# Set environment variables
+export STREAMSETS_HOST_PREFIX="https://your-instance.streamsets.com"
+export STREAMSETS_CRED_ID="your-credential-id"
+export STREAMSETS_CRED_TOKEN="your-auth-token"
+
+# Start with persistent storage
+./start-docker.sh
+```
+
+#### Manual Docker Deployment
 ```bash
 # Build the image
 docker build -t streamsets-mcp-server .
 
-# Run with environment variables
-docker run -e STREAMSETS_HOST_PREFIX="https://your-instance.streamsets.com" \
-           -e STREAMSETS_CRED_ID="your-credential-id" \
-           -e STREAMSETS_CRED_TOKEN="your-auth-token" \
-           streamsets-mcp-server
+# Run with persistent volume for pipeline builders
+docker run -d \
+  -e STREAMSETS_HOST_PREFIX="https://your-instance.streamsets.com" \
+  -e STREAMSETS_CRED_ID="your-credential-id" \
+  -e STREAMSETS_CRED_TOKEN="your-auth-token" \
+  -v streamsets-pipeline-data:/data \
+  --name streamsets-mcp-server \
+  streamsets-mcp-server
+```
+
+#### Docker Compose (Full Configuration)
+```bash
+# Use docker-compose for production deployment
+docker-compose up -d
+
+# View logs
+docker-compose logs -f streamsets-mcp
+
+# Stop the service
+docker-compose down
 ```
 
 ### Claude Desktop Integration
@@ -174,14 +202,42 @@ sdc_get_security_audit_metrics org_id="your-org" audit_type="login"
 ## 🔧 Configuration
 
 ### Environment Variables
+
+#### Required (StreamSets Authentication)
 - `STREAMSETS_HOST_PREFIX` - StreamSets Control Hub URL
 - `STREAMSETS_CRED_ID` - API Credential ID
 - `STREAMSETS_CRED_TOKEN` - Authentication Token
 
+#### Optional (Pipeline Builder Persistence)
+- `PIPELINE_STORAGE_PATH` - Custom storage directory for pipeline builders
+
 ### Pipeline Builder Storage
-- **Location**: `~/.streamsets_mcp/pipeline_builders/`
+Pipeline builders are automatically persisted across conversations and container restarts:
+
+#### Storage Locations (Priority Order)
+1. **Custom Path**: `PIPELINE_STORAGE_PATH` environment variable
+2. **Docker Volume**: `/data/pipeline_builders` (when running in Docker)
+3. **Default Path**: `~/.streamsets_mcp/pipeline_builders/`
+
+#### Configuration Options
 - **Format**: Pickle files for session persistence
-- **Management**: Automatic file management
+- **Management**: Automatic file management with error handling
+- **Fallback**: Memory-only mode if no writable storage available
+
+#### Docker Persistence
+When using Docker, pipeline builders persist in named volumes:
+```bash
+# Data persists in Docker volume 'pipeline_data'
+docker-compose up -d
+
+# Or mount to host directory
+docker run -v ./data:/data streamsets-mcp-server
+```
+
+#### Troubleshooting
+- **No Persistence**: Check storage directory permissions
+- **Docker Issues**: Ensure volume mounts are configured correctly
+- **Memory Mode**: Server logs will indicate if persistence is disabled
 
 ## 📚 Documentation
 

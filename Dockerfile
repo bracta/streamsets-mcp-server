@@ -16,9 +16,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the server code
 COPY streamsets_server.py .
 
-# Create non-root user
+# Create non-root user and persistence directory
 RUN useradd -m -u 1000 mcpuser && \
-    chown -R mcpuser:mcpuser /app
+    chown -R mcpuser:mcpuser /app && \
+    mkdir -p /data/pipeline_builders && \
+    chown -R mcpuser:mcpuser /data
+
+# Create volume mount point for pipeline builder persistence
+VOLUME ["/data"]
 
 # Switch to non-root user
 USER mcpuser

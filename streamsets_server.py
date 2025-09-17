@@ -73,12 +73,50 @@ class PipelineBuilderSession:
             "published": self.published
         }
 
-# Pipeline Builder Persistence
-PIPELINE_STORAGE_DIR = Path.home() / ".streamsets_mcp" / "pipeline_builders"
-PIPELINE_COUNTER_FILE = PIPELINE_STORAGE_DIR / "counter.txt"
+# Pipeline Builder Persistence Configuration
+def get_storage_directory():
+    """Get the pipeline storage directory based on environment configuration."""
+    # Check for custom storage path (Docker volume support)
+    custom_path = os.environ.get("PIPELINE_STORAGE_PATH")
+    if custom_path:
+        path = Path(custom_path)
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            logger.info(f"Using custom storage path: {path}")
+            return path
+        except Exception as e:
+            logger.warning(f"Cannot use custom storage path {path}: {e}")
 
-# Ensure storage directory exists
-PIPELINE_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+    # Check if running in Docker (volume mount exists)
+    docker_path = Path("/data/pipeline_builders")
+    try:
+        if docker_path.parent.exists() and docker_path.parent.is_dir():
+            docker_path.mkdir(parents=True, exist_ok=True)
+            logger.info(f"Using Docker volume storage: {docker_path}")
+            return docker_path
+    except Exception as e:
+        logger.warning(f"Cannot use Docker volume path {docker_path}: {e}")
+
+    # Default to user home directory
+    default_path = Path.home() / ".streamsets_mcp" / "pipeline_builders"
+    try:
+        default_path.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Using default storage path: {default_path}")
+        return default_path
+    except Exception as e:
+        logger.error(f"Cannot create default storage path {default_path}: {e}")
+        return None
+
+# Initialize storage paths with enhanced error handling
+PIPELINE_STORAGE_DIR = get_storage_directory()
+PIPELINE_COUNTER_FILE = PIPELINE_STORAGE_DIR / "counter.txt" if PIPELINE_STORAGE_DIR else None
+
+# Validate storage initialization
+if PIPELINE_STORAGE_DIR is None:
+    logger.error("⚠️ Pipeline persistence disabled - no writable storage directory available")
+    logger.error("⚠️ Pipeline builders will only exist in memory for this session")
+else:
+    logger.info(f"✅ Pipeline persistence enabled at: {PIPELINE_STORAGE_DIR}")
 
 # Global pipeline builder storage (loaded from files)
 active_pipeline_builders = {}
@@ -87,6 +125,10 @@ pipeline_counter = 0
 def load_pipeline_counter():
     """Load the pipeline counter from file."""
     global pipeline_counter
+    if PIPELINE_COUNTER_FILE is None:
+        pipeline_counter = 0
+        return
+
     try:
         if PIPELINE_COUNTER_FILE.exists():
             with open(PIPELINE_COUNTER_FILE, 'r') as f:
@@ -99,6 +141,9 @@ def load_pipeline_counter():
 
 def save_pipeline_counter():
     """Save the pipeline counter to file."""
+    if PIPELINE_COUNTER_FILE is None:
+        return
+
     try:
         with open(PIPELINE_COUNTER_FILE, 'w') as f:
             f.write(str(pipeline_counter))
@@ -107,10 +152,16 @@ def save_pipeline_counter():
 
 def get_pipeline_file_path(pipeline_id):
     """Get the file path for storing a pipeline builder session."""
+    if PIPELINE_STORAGE_DIR is None:
+        return None
     return PIPELINE_STORAGE_DIR / f"{pipeline_id}.pkl"
 
 def save_pipeline_session(pipeline_id, session):
     """Save a pipeline builder session to disk."""
+    if PIPELINE_STORAGE_DIR is None:
+        logger.debug(f"Persistence disabled - pipeline session {pipeline_id} not saved to disk")
+        return
+
     try:
         file_path = get_pipeline_file_path(pipeline_id)
         with open(file_path, 'wb') as f:
@@ -121,6 +172,9 @@ def save_pipeline_session(pipeline_id, session):
 
 def load_pipeline_session(pipeline_id):
     """Load a pipeline builder session from disk."""
+    if PIPELINE_STORAGE_DIR is None:
+        return None
+
     try:
         file_path = get_pipeline_file_path(pipeline_id)
         if file_path.exists():
@@ -137,6 +191,10 @@ def load_all_pipeline_sessions():
     global active_pipeline_builders
     active_pipeline_builders = {}
 
+    if PIPELINE_STORAGE_DIR is None:
+        logger.debug("Persistence disabled - no pipeline sessions loaded from disk")
+        return
+
     try:
         for file_path in PIPELINE_STORAGE_DIR.glob("pipeline_builder_*.pkl"):
             pipeline_id = file_path.stem
@@ -150,6 +208,9 @@ def load_all_pipeline_sessions():
 
 def delete_pipeline_session_file(pipeline_id):
     """Delete a pipeline builder session file from disk."""
+    if PIPELINE_STORAGE_DIR is None:
+        return
+
     try:
         file_path = get_pipeline_file_path(pipeline_id)
         if file_path.exists():
