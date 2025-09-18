@@ -98,51 +98,17 @@ sdc_get_pipeline_flow pipeline_id="pipeline_builder_1"
 
 ### Docker Deployment
 
-#### For MCP Integration (Claude Desktop)
+#### Setup for MCP Integration
 ```bash
-# Build the image first
+# Build the image
 docker build -t streamsets-mcp-server .
 
 # Create persistent volume for pipeline builders
 docker volume create streamsets-pipeline-data
 ```
 
-Then configure Claude Desktop to use Docker with persistent volume:
-```json
-{
-  "mcpServers": {
-    "streamsets": {
-      "command": "docker",
-      "args": [
-        "run", "--rm", "-i",
-        "-v", "streamsets-pipeline-data:/data",
-        "-e", "STREAMSETS_HOST_PREFIX=https://your-instance.streamsets.com",
-        "-e", "STREAMSETS_CRED_ID=your-credential-id",
-        "-e", "STREAMSETS_CRED_TOKEN=your-auth-token",
-        "streamsets-mcp-server"
-      ]
-    }
-  }
-}
-```
-
-#### Standalone Testing (Docker Compose)
+#### Manual Testing
 ```bash
-# For testing/development only (not for MCP integration)
-docker-compose up -d
-
-# View logs
-docker-compose logs -f streamsets-mcp
-
-# Stop the service
-docker-compose down
-```
-
-#### Manual Docker Testing
-```bash
-# Build the image
-docker build -t streamsets-mcp-server .
-
 # Test run with volume persistence
 docker run --rm -it \
   -e STREAMSETS_HOST_PREFIX="https://your-instance.streamsets.com" \
@@ -190,7 +156,6 @@ docker run --rm -it \
 }
 ```
 
-**Note**: Docker Compose is **not compatible** with MCP integration. Use the Docker command approach above for containerized MCP deployment.
 
 ## 📖 Usage Examples
 
@@ -265,11 +230,11 @@ Pipeline builders are automatically persisted across conversations and container
 #### Docker Persistence
 When using Docker, pipeline builders persist in named volumes:
 ```bash
-# Data persists in Docker volume 'pipeline_data'
-docker-compose up -d
+# Data persists in Docker volume 'streamsets-pipeline-data'
+docker volume create streamsets-pipeline-data
 
-# Or mount to host directory
-docker run -v ./data:/data streamsets-mcp-server
+# Run with persistent volume
+docker run --rm -it -v streamsets-pipeline-data:/data streamsets-mcp-server
 ```
 
 #### Troubleshooting
