@@ -67,6 +67,11 @@ registry:
       - name: sdc_get_connection_details
       - name: sdc_get_connection_types
       - name: sdc_get_pipelines_using_connection
+      # Job Creation & Deletion
+      - name: sdc_create_job_from_template
+      - name: sdc_create_job_async
+      - name: sdc_duplicate_job
+      - name: sdc_delete_job
     secrets:
       - name: STREAMSETS_HOST_PREFIX
         env: STREAMSETS_HOST_PREFIX
@@ -85,6 +90,7 @@ registry:
         - streamsets
         - data-integration
         - job-management
+        - job-creation
         - job-labels
         - pipeline-management
         - bulk-operations

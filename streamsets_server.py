@@ -3671,6 +3671,286 @@ def _trace_pipeline_path(session, current_stage_id, results, indent, visited):
         target_stage_id = conn['target']
         _trace_pipeline_path(session, target_stage_id, results, indent + "  ", visited)
 
+# === JOB CREATION & DELETION TOOLS ===
+
+@mcp.tool()
+async def sdc_create_job_from_template(
+    template_job_id: str,
+    job_name: str,
+    runtime_parameters: str = "{}",
+    inherit_permissions: bool = False
+) -> str:
+    """
+    Create a new job instance from an existing job template.
+
+    Args:
+        template_job_id: ID of the job template to use
+        job_name: Name for the new job instance
+        runtime_parameters: JSON string of runtime parameters for the job
+        inherit_permissions: Whether to inherit permissions from template
+
+    Returns:
+        Formatted job creation result with new job details
+    """
+    try:
+        if not validate_config():
+            return "❌ Error: Missing StreamSets configuration"
+
+        # Parse runtime parameters
+        try:
+            runtime_params = json.loads(runtime_parameters) if runtime_parameters else {}
+        except json.JSONDecodeError:
+            return "❌ Error: runtime_parameters must be valid JSON"
+
+        url = f"{HOST_PREFIX}/jobrunner/rest/v1/job/{template_job_id}/createAndStartJobInstances"
+
+        # Build the creation info payload
+        creation_info = {
+            "runtimeParameters": [runtime_params] if runtime_params else [{}],
+            "jobNames": [job_name]
+        }
+
+        params = {
+            "inheritPermissions": str(inherit_permissions).lower()
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                url,
+                headers=get_auth_headers(),
+                params=params,
+                json=creation_info,
+                timeout=30
+            )
+            response.raise_for_status()
+
+            data = response.json()
+
+            if isinstance(data, list) and data:
+                job_data = data[0]  # Get first created job
+
+                results = [f"✅ Job created successfully from template {template_job_id}:\n"]
+                results.append(f"📊 Job ID: {job_data.get('jobId', 'N/A')}")
+                results.append(f"📋 Name: {job_data.get('jobName', job_name)}")
+                results.append(f"🏷️ Template ID: {template_job_id}")
+
+                if job_data.get('status'):
+                    results.append(f"🔄 Status: {job_data['status']}")
+
+                if job_data.get('color'):
+                    results.append(f"🎨 Color: {job_data['color']}")
+
+                if job_data.get('runCount'):
+                    results.append(f"🔢 Run Count: {job_data['runCount']}")
+
+                if job_data.get('timeStamp'):
+                    created_time = datetime.fromtimestamp(job_data['timeStamp']/1000, tz=timezone.utc)
+                    results.append(f"⏰ Created: {created_time.isoformat()}")
+
+                if runtime_params:
+                    results.append(f"⚙️ Runtime Parameters: {len(runtime_params)} parameters")
+
+                return "\n".join(results)
+            else:
+                return f"✅ Job creation initiated from template {template_job_id}"
+
+    except httpx.HTTPStatusError as e:
+        logger.error(f"HTTP error: {e.response.status_code}")
+        return f"❌ API Error: {e.response.status_code} - {e.response.text[:200]}"
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        return f"❌ Unexpected error: {str(e)}"
+
+@mcp.tool()
+async def sdc_create_job_async(
+    template_job_id: str,
+    job_name: str,
+    runtime_parameters: str = "{}",
+    inherit_permissions: bool = False
+) -> str:
+    """
+    Create a new job instance from a template asynchronously (non-blocking).
+
+    Args:
+        template_job_id: ID of the job template to use
+        job_name: Name for the new job instance
+        runtime_parameters: JSON string of runtime parameters for the job
+        inherit_permissions: Whether to inherit permissions from template
+
+    Returns:
+        Formatted job creation result with async operation details
+    """
+    try:
+        if not validate_config():
+            return "❌ Error: Missing StreamSets configuration"
+
+        # Parse runtime parameters
+        try:
+            runtime_params = json.loads(runtime_parameters) if runtime_parameters else {}
+        except json.JSONDecodeError:
+            return "❌ Error: runtime_parameters must be valid JSON"
+
+        url = f"{HOST_PREFIX}/jobrunner/rest/v1/job/{template_job_id}/createAndStartJobInstancesAsync"
+
+        # Build the creation info payload
+        creation_info = {
+            "runtimeParameters": [runtime_params] if runtime_params else [{}],
+            "jobNames": [job_name]
+        }
+
+        params = {
+            "inheritPermissions": str(inherit_permissions).lower()
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                url,
+                headers=get_auth_headers(),
+                params=params,
+                json=creation_info,
+                timeout=30
+            )
+            response.raise_for_status()
+
+            data = response.json()
+
+            results = [f"✅ Async job creation initiated from template {template_job_id}:\n"]
+            results.append(f"📋 Job Name: {job_name}")
+            results.append(f"🏷️ Template ID: {template_job_id}")
+            results.append(f"🔄 Mode: Asynchronous")
+            results.append(f"⚙️ Inherit Permissions: {inherit_permissions}")
+
+            if runtime_params:
+                results.append(f"⚙️ Runtime Parameters: {len(runtime_params)} parameters")
+
+            results.append("\n📝 Note: Job creation is running in background. Use sdc_list_jobs to check status.")
+
+            return "\n".join(results)
+
+    except httpx.HTTPStatusError as e:
+        logger.error(f"HTTP error: {e.response.status_code}")
+        return f"❌ API Error: {e.response.status_code} - {e.response.text[:200]}"
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        return f"❌ Unexpected error: {str(e)}"
+
+@mcp.tool()
+async def sdc_duplicate_job(
+    job_id: str,
+    new_job_name: str,
+    copy_acl: bool = True,
+    copy_labels: bool = True
+) -> str:
+    """
+    Duplicate an existing job with a new name.
+
+    Args:
+        job_id: ID of the job to duplicate
+        new_job_name: Name for the duplicated job
+        copy_acl: Whether to copy ACL permissions from original job
+        copy_labels: Whether to copy labels from original job
+
+    Returns:
+        Formatted job duplication result
+    """
+    try:
+        if not validate_config():
+            return "❌ Error: Missing StreamSets configuration"
+
+        url = f"{HOST_PREFIX}/jobrunner/rest/v1/job/{job_id}/duplicate"
+
+        duplicate_info = {
+            "name": new_job_name,
+            "copyAcl": copy_acl,
+            "copyLabels": copy_labels
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                url,
+                headers=get_auth_headers(),
+                json=duplicate_info,
+                timeout=30
+            )
+            response.raise_for_status()
+
+            results = [f"✅ Job duplicated successfully:\n"]
+            results.append(f"📊 Original Job ID: {job_id}")
+            results.append(f"📋 New Job Name: {new_job_name}")
+            results.append(f"🔒 Copy ACL: {copy_acl}")
+            results.append(f"🏷️ Copy Labels: {copy_labels}")
+
+            results.append("\n📝 Note: Use sdc_list_jobs to find the new job ID")
+
+            return "\n".join(results)
+
+    except httpx.HTTPStatusError as e:
+        logger.error(f"HTTP error: {e.response.status_code}")
+        return f"❌ API Error: {e.response.status_code} - {e.response.text[:200]}"
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        return f"❌ Unexpected error: {str(e)}"
+
+@mcp.tool()
+async def sdc_delete_job(job_id: str) -> str:
+    """
+    Delete a job permanently. WARNING: This action cannot be undone.
+
+    Args:
+        job_id: ID of the job to delete
+
+    Returns:
+        Confirmation of job deletion
+    """
+    try:
+        if not validate_config():
+            return "❌ Error: Missing StreamSets configuration"
+
+        # First get job details for confirmation
+        job_details_url = f"{HOST_PREFIX}/jobrunner/rest/v1/job/{job_id}"
+
+        async with httpx.AsyncClient() as client:
+            # Get job details first
+            details_response = await client.get(
+                job_details_url,
+                headers=get_auth_headers(),
+                timeout=30
+            )
+
+            if details_response.status_code == 404:
+                return f"❌ Job {job_id} not found"
+
+            details_response.raise_for_status()
+            job_data = details_response.json()
+            job_name = job_data.get('jobName', 'Unknown')
+
+            # Delete the job
+            delete_url = f"{HOST_PREFIX}/jobrunner/rest/v1/job/{job_id}"
+            delete_response = await client.delete(
+                delete_url,
+                headers=get_auth_headers(),
+                timeout=30
+            )
+            delete_response.raise_for_status()
+
+            results = [f"✅ Job deleted successfully:\n"]
+            results.append(f"📊 Job ID: {job_id}")
+            results.append(f"📋 Job Name: {job_name}")
+            results.append(f"⚠️ Status: Permanently deleted")
+
+            results.append("\n🔄 Note: This action cannot be undone")
+
+            return "\n".join(results)
+
+    except httpx.HTTPStatusError as e:
+        logger.error(f"HTTP error: {e.response.status_code}")
+        if e.response.status_code == 404:
+            return f"❌ Job {job_id} not found"
+        return f"❌ API Error: {e.response.status_code} - {e.response.text[:200]}"
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        return f"❌ Unexpected error: {str(e)}"
+
 # === SERVER STARTUP ===
 if __name__ == "__main__":
     logger.info("Starting Streamsets MCP server...")
